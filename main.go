@@ -5,28 +5,30 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
-	"github.com/Luzifer/go-openssl"
+	"github.com/xindong/frontd/aes256cbc"
 )
 
 const (
 	// max open file should at least be
 	_MaxOpenfile              = uint64(1024 * 1024 * 1024)
 	_MaxBackendAddrCacheCount = 1024 * 1024
-	_DefaultPort              = "4043"
+	_DefaultPort              = 4043
 	_MTU                      = 1500
 )
 
 var (
-	_SecretPassphase string
-	_OpenSSL         = openssl.New()
+	_SecretPassphase []byte
+	_Aes256CBC       = aes256cbc.New()
 )
 
 var (
@@ -35,13 +37,13 @@ var (
 	_BufioReaderPool       sync.Pool
 )
 
-type backendAddrMap map[string]string
+type backendAddrMap map[string][]byte
 
 func init() {
 	_BackendAddrCache.Store(make(backendAddrMap))
 }
 
-func decryptBackendAddr(line []byte) (string, error) {
+func decryptBackendAddr(line []byte) ([]byte, error) {
 	// Try to check cache
 	m1 := _BackendAddrCache.Load().(backendAddrMap)
 	addr, ok := m1[string(line)]
@@ -49,16 +51,16 @@ func decryptBackendAddr(line []byte) (string, error) {
 		return addr, nil
 	}
 	// Try to decrypt it (AES)
-	plaintext, err := _OpenSSL.DecryptString(_SecretPassphase, string(line))
+	addr, err := _Aes256CBC.Decrypt(_SecretPassphase, line)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	addr = string(plaintext)
+
 	cacheBackendAddr(string(line), addr)
 	return addr, nil
 }
 
-func cacheBackendAddr(key, val string) {
+func cacheBackendAddr(key string, val []byte) {
 	_BackendAddrCacheMutex.Lock()
 	defer _BackendAddrCacheMutex.Unlock()
 
@@ -92,13 +94,20 @@ func main() {
 		syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
 	}
 
-	_SecretPassphase = os.Getenv("SECRET")
+	_SecretPassphase = []byte(os.Getenv("SECRET"))
 
-	ListenAndServe()
+	pprofPort, err := strconv.Atoi(os.Getenv("PPROF_PORT"))
+	if err == nil && pprofPort > 0 && pprofPort <= 65535 {
+		go func() {
+			log.Println(http.ListenAndServe(":"+strconv.Itoa(pprofPort), nil))
+		}()
+	}
+
+	listenAndServe()
 }
 
-func ListenAndServe() {
-	l, err := net.Listen("tcp", ":"+_DefaultPort)
+func listenAndServe() {
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(_DefaultPort))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -163,7 +172,7 @@ func handleConn(c net.Conn) {
 	// TODO: check if addr is allowed
 
 	// Build tunnel
-	backend, err := net.Dial("tcp", addr)
+	backend, err := net.Dial("tcp", string(addr))
 	if err != nil {
 		// handle error
 		switch err := err.(type) {

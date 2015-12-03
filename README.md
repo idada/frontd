@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/xindong/frontd.svg?branch=master)](https://travis-ci.org/xindong/frontd) 
+[![Build Status](https://travis-ci.org/xindong/frontd.svg?branch=master)](https://travis-ci.org/xindong/frontd)
 [![Coverage Status](https://coveralls.io/repos/xindong/frontd/badge.svg?branch=master&service=github)](https://coveralls.io/github/xindong/frontd?branch=master)
 
 ### 简介
@@ -34,7 +34,12 @@
 
 ### 部署服务端
 
-`docker run -e "SECRET=SomePassphrase" tomasen/frontd /go/bin/frontd`
+1. 通过环境变量 `SECRET` 设置解密用的秘钥
+2. 可以使用官方 Docker 镜像 `tomasen/frontd`
+
+	启动命令范例如下：
+
+	`docker run -e "SECRET=SomePassphrase" tomasen/frontd /go/bin/frontd`
 
 
 ### 通讯协议
@@ -47,7 +52,6 @@
 | --- | --- |
 | 0x01   | 后端服务器超时 |
 | 0x02   | 无法连接后端服务器 |
-| 0x03   | 后端服务器超时 |
 | 0x04   | 获取后端地址密文失败 |
 | 0x06   | 后端地址解密失败 |
 | 0x10   | 不被允许的IP地址 |
@@ -65,7 +69,7 @@
 4. 客户端与网关建立连接后，将后端地址的密文文本加一个换行符发送给网关。建立连接。
 	* 根据前例： 应该发送 `U2FsdGVkX19KIJ9OQJKT/yHGMrS+5SsBAAjetomptQ0=\n`
 
-### 测试数据
+### Benchmark 基准测试数据指标
 
 * 测试环境
 
@@ -73,14 +77,30 @@
 
 * 测试数据
 
- 	当地址缓存命中时（正常情形） `frontd` 为后端带来的额外延迟为 0.839ms <br/>
-	当地址缓存完全无命时（极端情况）  `frontd` 为后端带来的额外延迟为 1.223ms
+ 	当地址缓存命中时（正常情形） `frontd` 为后端带来的额外延迟为 0.57ms <br/>
+	当地址缓存完全无命时（极端情况）  `frontd` 为后端带来的额外延迟为 1.05ms
+
+	```bash
+BenchmarkEncryptText-4 	  200000	      7345 ns/op
+BenchmarkDecryptText-4 	  500000	      4279 ns/op
+BenchmarkEcho-4        	    1000	   1151079 ns/op
+BenchmarkLatency-4     	    1000	   1727021 ns/op
+BenchmarkNoHitLatency-4	    1000	   2205162 ns/op
+	```
 
 * 测试方法
 
 	`go test -bench .`
 
-### 后记
+### Profiling
+
+如果启动时通过环境变量 `PPROF_PORT`，就会在该端口启动 pprof 。使用方法可以参考 [https://golang.org/pkg/net/http/pprof/]
+
+	启动命令范例如下：
+
+	`docker run -e "SECRET=SomePassphrase" -e "PPROF_PORT=4044" -p 4044 tomasen/frontd /go/bin/frontd`
+
+### 设计说明
 
 `frontd` 在设计上是安全性+性能+易于接入+易于维护的折中方案。其中：
 
@@ -101,7 +121,9 @@ Pull request must pass:
 
 ### TODO
 
-* 支持 HTTP 反向代理 （使用 Header `X-AskForOrigin`）
-* 支持 binary protocol
-* 支持更多加密解密算法
-* 支持 consul 服务发现
+- [ ] Improve test coverage to over 90%
+- [ ] 支持 net/http/pprof
+- [ ] 支持 HTTP 反向代理 （使用 Header `X-AskForOrigin`）
+- [ ] 支持 binary protocol
+- [ ] 支持更多加密解密算法
+- [ ] 支持 consul 服务发现
