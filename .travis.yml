@@ -9,6 +9,7 @@ before_install:
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/golang/lint/golint
     - go get github.com/mattn/goveralls
+    - go get golang.org/x/net/websocket
 
 install:
     - go get -d -v ./... && go build -v ./...
@@ -21,4 +22,4 @@ script:
 
 after_script:
     - $HOME/gopath/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-    - go test -bench .
+    - go test  -benchmem -bench .
