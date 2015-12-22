@@ -7,16 +7,22 @@ import (
 	"testing"
 )
 
+func Benchmark_Decrypt(b *testing.B) {
+	opensslEncrypted := []byte("U2FsdGVkX19ZM5qQJGe/d5A/4pccgH+arBGTp+QnWPU=")
+	passphrase := []byte("z4yH36a6zerhfE5427ZV")
+	for i := 0; i < b.N; i++ {
+		DecryptBase64(passphrase, opensslEncrypted)
+	}
+}
+
 func TestDecryptFromString(t *testing.T) {
 	// > echo -n "hallowelt" | openssl aes-256-cbc -pass pass:z4yH36a6zerhfE5427ZV -a -salt
 	// U2FsdGVkX19ZM5qQJGe/d5A/4pccgH+arBGTp+QnWPU=
 
-	opensslEncrypted := []byte("U2FsdGVkX19ZM5qQJGe/d5A/4pccgH+arBGTp+QnWPU=")
-	passphrase := []byte("z4yH36a6zerhfE5427ZV")
+	opensslEncrypted := "U2FsdGVkX19ZM5qQJGe/d5A/4pccgH+arBGTp+QnWPU="
+	passphrase := "z4yH36a6zerhfE5427ZV"
 
-	o := New()
-
-	data, err := o.DecryptString(passphrase, opensslEncrypted)
+	data, err := DecryptString(passphrase, opensslEncrypted)
 
 	if err != nil {
 		t.Fatalf("Test errored: %s", err)
@@ -28,33 +34,29 @@ func TestDecryptFromString(t *testing.T) {
 }
 
 func TestEncryptToDecrypt(t *testing.T) {
-	plaintext := []byte("hallowelt")
-	passphrase := []byte("z4yH36a6zerhfE5427ZV")
+	plaintext := "hallowelt"
+	passphrase := "z4yH36a6zerhfE5427ZV"
 
-	o := New()
-
-	enc, err := o.EncryptString(passphrase, plaintext)
+	enc, err := EncryptString(passphrase, plaintext)
 	if err != nil {
 		t.Fatalf("Test errored at encrypt: %s", err)
 	}
 
-	dec, err := o.DecryptString(passphrase, enc)
+	dec, err := DecryptString(passphrase, string(enc))
 	if err != nil {
 		t.Fatalf("Test errored at decrypt: %s", err)
 	}
 
-	if !bytes.Equal(dec, plaintext) {
+	if string(dec) != plaintext {
 		t.Errorf("Decrypted text did not match input.")
 	}
 }
 
 func TestEncryptToOpenSSL(t *testing.T) {
-	plaintext := []byte("hallowelt")
-	passphrase := []byte("z4yH36a6zerhfE5427ZV")
+	plaintext := "hallowelt"
+	passphrase := "z4yH36a6zerhfE5427ZV"
 
-	o := New()
-
-	enc, err := o.EncryptString(passphrase, plaintext)
+	enc, err := EncryptString(passphrase, plaintext)
 	if err != nil {
 		t.Fatalf("Test errored at encrypt: %s", err)
 	}
@@ -71,7 +73,7 @@ func TestEncryptToOpenSSL(t *testing.T) {
 		t.Errorf("OpenSSL errored: %s", err)
 	}
 
-	if !bytes.Equal(out.Bytes(), plaintext) {
+	if out.String() != plaintext {
 		t.Errorf("OpenSSL output did not match input.\nOutput was: %s", out.String())
 	}
 }

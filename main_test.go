@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xindong/frontd/aes256cbc"
-	"github.com/xindong/frontd/reuse"
+	"github.com/idada/frontd/aes256cbc"
+	"github.com/idada/frontd/reuse"
 	"golang.org/x/net/websocket"
 )
 
@@ -114,9 +114,7 @@ func servEcho() {
 
 // TestTextDecryptAES ---
 func TestTextDecryptAES(t *testing.T) {
-	o := aes256cbc.New()
-
-	dec, err := o.DecryptString(_secret, _expectAESCiphertext)
+	dec, err := aes256cbc.DecryptBase64(_secret, _expectAESCiphertext)
 	if err != nil {
 		panic(err)
 	}
@@ -143,9 +141,7 @@ func TestHTTPServer(t *testing.T) {
 }
 
 func encryptText(plaintext, passphrase []byte) ([]byte, error) {
-	o := aes256cbc.New()
-
-	return o.EncryptString(passphrase, plaintext)
+	return aes256cbc.EncryptBase64(passphrase, plaintext)
 }
 
 func testHTTPServer(hdrs map[string]string, expected string) {
@@ -311,8 +307,7 @@ func testProtocol(cipherAddr, expected []byte) {
 
 // TestBinaryProtocolDecrypt ---
 func TestBinaryProtocolDecrypt(*testing.T) {
-	o := aes256cbc.New()
-	b, err := o.Encrypt(_secret, _echoServerAddr)
+	b, err := aes256cbc.Encrypt(_secret, _echoServerAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -377,8 +372,7 @@ func BenchmarkEncryptText(b *testing.B) {
 
 func BenchmarkDecryptText(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		o := aes256cbc.New()
-		_, err := o.DecryptString(_secret, _expectAESCiphertext)
+		_, err := aes256cbc.DecryptBase64(_secret, _expectAESCiphertext)
 		if err != nil {
 			panic(err)
 		}

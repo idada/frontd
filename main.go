@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/xindong/frontd/aes256cbc"
+	"github.com/idada/frontd/aes256cbc"
 )
 
 const (
@@ -40,7 +40,6 @@ var (
 
 var (
 	_SecretPassphase []byte
-	_Aes256CBC       = aes256cbc.New()
 )
 
 var (
@@ -337,7 +336,7 @@ func backendAddrDecrypt(key []byte) ([]byte, error) {
 	}
 
 	// Try to decrypt it (AES)
-	addr, err := _Aes256CBC.Decrypt(_SecretPassphase, key)
+	addr, err := aes256cbc.Decrypt(_SecretPassphase, key)
 	if err != nil {
 		return nil, err
 	}
