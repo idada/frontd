@@ -136,7 +136,13 @@ func handleConn(c net.Conn) {
 	} else {
 		rdr = bufio.NewReader(c)
 	}
-	defer _BufioReaderPool.Put(rdr)
+	bufioReleased := false
+	defer func() {
+		if !bufioReleased {
+			rdr.Reset(nil)
+			_BufioReaderPool.Put(rdr)
+		}
+	}()
 
 	addr, err := handleBinaryHdr(rdr, c)
 	if err != nil {
@@ -189,6 +195,8 @@ func handleConn(c net.Conn) {
 	err = tunneling(string(addr), rdr, c, header)
 	if err != nil {
 		log.Println(err)
+	} else {
+		bufioReleased = true
 	}
 }
 
@@ -309,9 +317,25 @@ func tunneling(addr string, rdr *bufio.Reader, c net.Conn, header *bytes.Buffer)
 		header.WriteTo(backend)
 	}
 
+	if n := rdr.Buffered(); n > 0 {
+		var data []byte
+		data, err = rdr.Peek(n)
+		if err != nil {
+			writeErrCode(c, []byte("4103"), false)
+			return err
+		}
+		_, err = backend.Write(data)
+		if err != nil {
+			writeErrCode(c, []byte("4102"), false)
+			return err
+		}
+	}
+	rdr.Reset(nil)
+	_BufioReaderPool.Put(rdr)
+
 	// Start transfering data
 	go pipe(c, backend)
-	pipe(backend, rdr)
+	pipe(backend, c)
 	return nil
 }
 
